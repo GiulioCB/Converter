@@ -66,6 +66,8 @@ class Handler(BaseHTTPRequestHandler):
                 return
             self.send_response(200)
             self.send_header('Content-Type','text/html; charset=utf-8')
+            self.send_header('Content-Security-Policy',
+                "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://mc-converter.onrender.com")
             self.send_cors(); self.end_headers()
             self.wfile.write(CONVERTER_APP_HTML.encode('utf-8'))
             return
