@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: mc-converter
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python converter_api.py
+    headers:
+      - path: /app
+        name: Content-Security-Policy
+        value: "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://mc-converter.onrender.com"
