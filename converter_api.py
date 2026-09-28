@@ -58,17 +58,8 @@ CONVERTER_APP_HTML = '''
 </head>
 <body>
 
-<!-- Password screen -->
-<div id="pwScreen">
-  <h1>🔒 MC Chart Converter</h1>
-  <p>CBRE Research — Chart Image Tool</p>
-  <input id="pwInput" type="password" placeholder="Password" autocomplete="off">
-  <button id="pwBtn">Enter</button>
-  <div id="pwError">Incorrect password</div>
-</div>
-
 <!-- Main app -->
-<div id="app">
+<div id="app" style="display:block">
   <div class="header">
     <div>
       <h1>MC Chart Converter</h1>
@@ -92,24 +83,8 @@ CONVERTER_APP_HTML = '''
 </div>
 
 <script>
-// ── Password ──────────────────────────────────────────────
-var PASSWORD = 'CBRE';
 var CONVERTER_URL = 'https://mc-converter.onrender.com';
-
-function checkPw(){
-  if(document.getElementById('pwInput').value.trim().toUpperCase() === PASSWORD){
-    document.getElementById('pwScreen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    init();
-  } else {
-    document.getElementById('pwError').style.display = 'block';
-    document.getElementById('pwInput').value = '';
-  }
-}
-document.getElementById('pwBtn').onclick = checkPw;
-document.getElementById('pwInput').onkeydown = function(e){ if(e.key==='Enter') checkPw(); };
-// Auto-focus
-document.getElementById('pwInput').focus();
+window.onload = function(){ init(); };
 
 // ── Chart slots ───────────────────────────────────────────
 var SLOTS = [
@@ -351,6 +326,21 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200); self.send_cors(); self.end_headers()
     def do_GET(self):
         if self.path == '/app':
+            # HTTP Basic Auth
+            import base64 as b64mod
+            auth = self.headers.get('Authorization','')
+            if auth.startswith('Basic '):
+                creds = b64mod.b64decode(auth[6:]).decode('utf-8','ignore')
+                user, _, pw = creds.partition(':')
+                ok = pw.strip().upper() == 'CBRE'
+            else:
+                ok = False
+            if not ok:
+                self.send_response(401)
+                self.send_header('WWW-Authenticate', 'Basic realm="MC Chart Converter"')
+                self.send_cors(); self.end_headers()
+                self.wfile.write(b'Unauthorised')
+                return
             self.send_response(200)
             self.send_header('Content-Type','text/html; charset=utf-8')
             self.send_cors(); self.end_headers()
