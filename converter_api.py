@@ -84,7 +84,12 @@ CONVERTER_APP_HTML = '''
 
 <script>
 var CONVERTER_URL = 'https://mc-converter.onrender.com';
-window.onload = function(){ init(); };
+// init runs after DOM is ready
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
 
 // ── Chart slots ───────────────────────────────────────────
 var SLOTS = [
@@ -107,16 +112,18 @@ function init(){
 }
 
 function checkServer(){
-  fetch(CONVERTER_URL, {method:'GET', mode:'cors'})
-    .then(function(r){ return r.json(); })
+  // Health check hits / (no auth needed)
+  fetch(CONVERTER_URL + '/', {method:'GET', mode:'cors'})
+    .then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); })
     .then(function(d){
       document.getElementById('statusDot').className = 'status-dot green';
       document.getElementById('statusText').textContent = 'Conversion server ready (v' + (d.version||'?') + ')';
       document.getElementById('serverStatus').textContent = '✓ Server online';
     }).catch(function(){
       document.getElementById('statusDot').className = 'status-dot orange';
-      document.getElementById('statusText').textContent = 'Server offline — SVG will render locally (lower quality)';
-      document.getElementById('serverStatus').textContent = '⚠ Server offline';
+      document.getElementById('statusText').textContent = 'Server waking up — SVG renders locally until connected';
+      document.getElementById('serverStatus').textContent = '⚠ Waking…';
+      setTimeout(checkServer, 15000);
     });
 }
 
