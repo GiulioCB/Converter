@@ -97,7 +97,7 @@ var PASSWORD = 'CBRE';
 var CONVERTER_URL = 'https://mc-converter.onrender.com';
 
 function checkPw(){
-  if(document.getElementById('pwInput').value === PASSWORD){
+  if(document.getElementById('pwInput').value.trim().toUpperCase() === PASSWORD){
     document.getElementById('pwScreen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     init();
@@ -106,8 +106,10 @@ function checkPw(){
     document.getElementById('pwInput').value = '';
   }
 }
-document.getElementById('pwBtn').addEventListener('click', checkPw);
-document.getElementById('pwInput').addEventListener('keydown', function(e){ if(e.key==='Enter') checkPw(); });
+document.getElementById('pwBtn').onclick = checkPw;
+document.getElementById('pwInput').onkeydown = function(e){ if(e.key==='Enter') checkPw(); };
+// Auto-focus
+document.getElementById('pwInput').focus();
 
 // ── Chart slots ───────────────────────────────────────────
 var SLOTS = [
