@@ -1,11 +1,24 @@
 """
-MC Builder Chart Converter API — v2
-Accepts PNG (bitmap) or PDF (vector) uploads.
-PDF is converted at 300 DPI for crisp chart text.
-Deploy to Render.com: pip install -r requirements.txt, python converter_api.py
+MC Builder Chart Converter API — v3
+Accepts SVG (vector, from Excel Ctrl+C), PNG, or PDF.
+SVG rendered at 300 DPI for perfect quality.
 """
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import json, base64, io, os
+
+def svg_to_png(svg_bytes, target_w=2400):
+    """Convert SVG to high-res PNG using cairosvg."""
+    import cairosvg
+    png_bytes = cairosvg.svg2png(
+        bytestring=svg_bytes,
+        output_width=target_w
+    )
+    from PIL import Image
+    img = Image.open(io.BytesIO(png_bytes))
+    w, h = img.size
+    out = io.BytesIO()
+    img.save(out, 'PNG', optimize=True)
+    return out.getvalue(), w, h
 
 def upscale_png(png_bytes, target_w=2400):
     from PIL import Image, ImageFilter, ImageEnhance
@@ -23,15 +36,12 @@ def upscale_png(png_bytes, target_w=2400):
     return out.getvalue(), w, h, new_w
 
 def pdf_to_png(pdf_bytes, dpi=300):
-    """Convert first page of PDF to PNG at given DPI using pypdfium2."""
     import pypdfium2 as pdfium
     pdf = pdfium.PdfDocument(pdf_bytes)
     page = pdf[0]
-    scale = dpi / 72  # PDF points are 72/inch
-    bitmap = page.render(scale=scale, rotation=0)
+    bitmap = page.render(scale=dpi/72)
     pil_img = bitmap.to_pil()
-    out = io.BytesIO()
-    pil_img.save(out, 'PNG', optimize=True)
+    out = io.BytesIO(); pil_img.save(out,'PNG',optimize=True)
     w, h = pil_img.size
     return out.getvalue(), w, h
 
@@ -47,15 +57,18 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-Type','application/json')
         self.send_cors(); self.end_headers()
-        self.wfile.write(json.dumps({'status':'ready','version':'2.0'}).encode())
+        self.wfile.write(json.dumps({'status':'ready','version':'3.0'}).encode())
     def do_POST(self):
         length = int(self.headers.get('Content-Length',0))
         body = json.loads(self.rfile.read(length)) if length else {}
         try:
-            raw = base64.b64decode(body['image'])
             fmt = body.get('format','png').lower()
+            raw = base64.b64decode(body['image'])
 
-            if fmt == 'pdf':
+            if fmt == 'svg':
+                png_bytes, sw, sh = svg_to_png(raw, target_w=2400)
+                out_w = sw
+            elif fmt == 'pdf':
                 png_bytes, sw, sh = pdf_to_png(raw, dpi=300)
                 out_w = sw
             else:
@@ -64,7 +77,6 @@ class Handler(BaseHTTPRequestHandler):
             result = {
                 'image': 'data:image/png;base64,' + base64.b64encode(png_bytes).decode(),
                 'src_w': sw, 'src_h': sh, 'out_w': out_w,
-                'dpi_est': round(sw / 3.74),
                 'format': fmt
             }
             self.send_response(200)
@@ -78,5 +90,5 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({'error':str(e)}).encode())
 
 port = int(os.environ.get('PORT', 8765))
-print(f'MC Converter v2 starting on port {port}')
+print(f'MC Converter v3 starting on port {port}')
 HTTPServer(('0.0.0.0', port), Handler).serve_forever()
